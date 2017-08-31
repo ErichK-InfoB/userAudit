@@ -1,6 +1,7 @@
 from handler import *
 import requests
 import json
+from multiprocessing import Pool
 
 #This file is intended to hold multiple classes for each 
 #aspect of the github API. it uses "handler" as a base class.
@@ -8,6 +9,20 @@ import json
 
 #this refactor could also consider a class to hold all different classes
 #and allow calls to be aliased inside of this single class
+
+
+
+#this must be at top level of module because python is weird
+#this is a func used to multithread queries so that it is much faster
+def tProc(head, chunk):
+    tmp = []
+    for i in chunk:
+        print(i['url'])
+        tmp.append(json.loads(\
+                requests.get(i['url'], headers=head).text))
+    return tmp
+
+
 
 class GitHubUserHandler(Handler):
     def __init__(self, secret, rateLim = True):
@@ -43,20 +58,27 @@ class GitHubUserHandler(Handler):
 #if debug print apiURL
     def pullData(self):
         orgFile = Handler.datPath + "GHOrgMem.txt"
-        
         if self.rl and self.isRecent(orgFile):
-                self.dat = json.load(open(orgFile, 'r'))
-        self.dat = []
-        for u in self.orgUserQuery():
-            print(u['url'])
-            self.dat.append(json.loads(\
-                    requests.get(u['url'], headers=self.header).text))
-        if self.rl:
-            self.__dumpData(orgFile, self.dat)
+            self.dat = json.load(open(orgFile, 'r'))
+            return
 
-    def __dumpData(self, f, dump):
+        self.dat = []
+        print("Grabbing user data, this may take a moment")
+        orgUsr = self.orgUserQuery()
+        cSize = 10
+        tmpIn = [(self.header, orgUsr[i:i+cSize]) for i in range(0, len(orgUsr), cSize)]
+        with Pool(len(tmpIn)) as p:
+            users = p.starmap(tProc, tmpIn)
+            
+        if self.rl:
+            self.__dumpData(orgFile)
+
+
+    
+
+    def __dumpData(self, f):
         with open(f, 'w') as memo:
-            json.dump(dump, memo, indent=2)
+            json.dump(self.dat, memo, indent=2)
 
 
 
@@ -66,7 +88,7 @@ if __name__ == "__main__":
     #test githubUser OBJ
     h = GitHubUserHandler(secret)
     h.pullData()
-    print(*h.getData(), sep='\n')
+   # print(*h.getData(), sep='\n')
     h.barfObj()
     print("Is recent?", h.isRecent("./handler.py"))
 

@@ -24,12 +24,12 @@ class Handler:
         return
 
     def barfObj(self, pretty=True, secure = True):
-        locVar = vars(self)['__dict__']
+        locVar = vars(self)
         if not pretty:
             print( locVar)
         else:
-            for key, value in locVar:
-                print("Key: ", key, "\tis:", value)
+            for key in locVar:
+                print("Key: ", key, "\tis:", locVar[key])
 
     #app specific. login, name, email fields should be populated
     def pullData(self):
@@ -38,6 +38,14 @@ class Handler:
 
     def getData(self):
         return self.dat
+
+    def __dumpData(self, f, dump= self.dat):
+        with open(f, 'w') as memo:
+            json.dump(dump, memo, indent=2)
+
+    def prettyPrintData(self):
+        print("SUPERCLASS METHOD")
+        return
 
     def isRecent(self, filename, change=3600):
         if os.path.isfile(filename):
